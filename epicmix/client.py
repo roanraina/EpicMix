@@ -4,7 +4,7 @@
 
 import requests
 from epicmix.exceptions import EpicError
-from epicmix.models import LifetimeStats
+from epicmix.models import *
 
 AUTH_URL = "https://bridge.mountain.live/passerelles/clients/Vail/authentication/v3/authentication.php"
 API_URL = "https://bridge.mountain.live/passerelles/clients/Vail/proxy.php"
@@ -18,7 +18,7 @@ class EpicMix:
     To use this class, you'll need to have a valid EpicMix account.
 
     Attributes:
-        user_creds: A dictionary containing the user's username and password.
+        user_creds: A dictionary containing the rider's EpicMix username and password.
 
 
     Typical usage example:
@@ -36,9 +36,9 @@ class EpicMix:
 
         Args:
             username:
-                A string containing the user's Epic Mix username (email)
+                A string containing the rider's EpicMix username (email)
             password:
-                A string containing the user's Epic Mix password
+                A string containing the rider's EpicMix password
             requests_session:
                 A Requests session object or None to create one.
         """
@@ -100,15 +100,6 @@ class EpicMix:
             )
         }
 
-    def get_lifetime_stats(self) -> LifetimeStats:
-        """Gets lifetime stats from Epic Mix
-
-        Returns:
-            dict: User's lifetime stats
-        """
-        response = self._get("v3/Stats/LifetimeStat")
-        return LifetimeStats(**response["data"])
-
     def _get(self, path):
         try:
             response = self._make_request(
@@ -134,3 +125,45 @@ class EpicMix:
 
     def _make_auth_params(self, mode: str) -> dict:
         return {"env": "PROD", "mode": mode, "lang": "en"}
+
+    def get_lifetime_stats(self) -> LifetimeStats:
+        """Retrieves the rider's lifetime statistics.
+
+        Returns:
+            LifetimeStats: The rider's lifetime stats.
+        """
+        response = self._get("v3/Stats/LifetimeStat")
+        return LifetimeStats(**response["data"])
+
+    def get_season_stats(self) -> list[SeasonStats]:
+        """Retrieves the rider's seasonal statistics for each season recorded.
+
+        Returns:
+            list[SeasonStats]: The rider's seasonal statistics for each season recorded.
+        """
+        response = self._get("v3/Stats/SeasonStat")
+        return [SeasonStats(**season) for season in response["data"]["seasonStats"]]
+
+    def get_daily_stats(self, seasonTagId: int) -> list[DayStats]:
+        """Retrieves the rider's daily statistics for a season.
+
+        Args:
+            seasonTagId (int): The id of the season.
+        Returns:
+            list[SeasonStats]: The rider's daily statistics for a season.
+        """
+        response = self._get(
+            str("v3/Stats/ResortDayStat?SeasonTagId=" + str(seasonTagId))
+        )
+        return [DayStats(**day) for day in response["data"]["resortDayStats"]]
+
+    def get_lift_history(self, date) -> list[LiftRide]:
+        """Retrieves the rider's lift history for a day.
+
+        Args:
+            date (str): A date in the form 'YYYY-MM-DDT00:00:00'
+        Returns:
+            list[SeasonStats]: The rider's lift hisory for a particular day.
+        """
+        response = self._get(str("v3/LiftHistory/Rides?date=" + str(date)))
+        return [LiftRide(**lift) for lift in response["data"]]
